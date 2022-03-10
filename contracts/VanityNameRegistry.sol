@@ -30,7 +30,7 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
     // Name registry
     mapping(bytes32 => uint256) public nameRegistry;
 
-    // Owned names
+    // Names owned by the account
     mapping(address => uint256[]) public owned;
 
     // Registration Price per character - initialized when deployed
