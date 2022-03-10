@@ -42,8 +42,8 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
     uint256 private lockDuration;
 
     // Events
-    event PricePerCharChanged(uint256 newPricePerChar);
-    event LockDurationChanged(uint256 newLockDuration);
+    event PricePerCharChanged(uint256 pricePerChar);
+    event LockDurationChanged(uint256 lockDuration);
 
     constructor(uint256 initialPricePerChar, uint256 initialLockDuration) {
         // Set initial pricePerChar, lockDuration

@@ -8,7 +8,7 @@ module.exports = (artifacts: Truffle.Artifacts, web3: Web3) => {
 
     await deployer.deploy(
       VanityNameRegistry,
-      web3.utils.toWei("0.1", "ether"),
+      web3.utils.toWei("0.0001", "ether"),
       1 * 60 * 60
     );
 
