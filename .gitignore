@@ -1,2 +1,13 @@
+# dependencies
 node_modules
 *-lock.json
+
+# truffle
+build
+
+# typechain
+types
+
+# buidler
+artifacts
+cache

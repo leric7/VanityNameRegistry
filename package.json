@@ -1,5 +1,29 @@
 {
+  "name": "VanityNameRegistry",
+  "version": "1.0.0",
+  "description": "A vanity name registering system resistant against frontrunning.",
+  "license": "MIT",
+  "author": {
+    "email": "leric7510@gmail.com",
+    "name": "Eric Lee"
+  },
+  "scripts": {
+    "generate": "truffle compile && typechain --target truffle-v5 './build/**/*.json'",
+    "prepare": "npm run generate",
+    "test": "truffle test && npm run tsc",
+    "tsc": "tsc --noEmit"
+  },
   "dependencies": {
     "@openzeppelin/contracts": "^4.5.0"
+  },
+  "devDependencies": {
+    "@typechain/truffle-v5": "^7.0.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^9.1.0",
+    "@types/node": "^17.0.21",
+    "truffle": "^5.5.3",
+    "ts-node": "^10.7.0",
+    "typechain": "^7.0.1",
+    "typescript": "^4.6.2"
   }
 }
