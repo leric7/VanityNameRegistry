@@ -740,9 +740,32 @@ contract("VanityNameRegistry", (accounts) => {
     });
   });
 
+  it("user2 should not be able to release the name1, which user1 registered", async () => {
+    // user1 registers the name1
+    let receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // user2 releases the name1
+    await truffleAssert.fails(
+      instance.release(name1, {
+        from: user2Account,
+      }),
+      "Only name owner can release the name."
+    );
+  });
+
   it("user1 should not be able to release the name before registration", async () => {
     // user1 releases the name1
-    await truffleAssert.fail(
+    await truffleAssert.fails(
       instance.release(name1, {
         from: user1Account,
       }),

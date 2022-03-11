@@ -56,7 +56,17 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
         uint256 lockedBalance,
         uint256 lockedUntil
     );
+    event NameReleased(address owner, string name);
     event ClaimedBalance(address owner, uint256 balance);
+
+    // Modifiers
+    modifier nameRegistered(string memory name) {
+        require(
+            nameRegistry[encodeName(name)] != 0,
+            "Name is not registered yet."
+        );
+        _;
+    }
 
     /**
      * Internal Functions
@@ -165,14 +175,10 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
     }
 
     // Renew the name
-    function renew(string memory name) external {
+    function renew(string memory name) external nameRegistered(name) {
         // Encode the name
         bytes32 nameEncoded = encodeName(name);
         uint256 nameOrderNumber = nameRegistry[nameEncoded];
-
-        // Check if name is registered.
-        require(nameOrderNumber != 0, "Name is not registered yet.");
-
         Order memory nameOrder = orders[nameOrderNumber];
 
         // Check if sender is order owner.
@@ -217,11 +223,38 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
             }
         }
 
-        // Claim the balance
-        bool sent = payable(msg.sender).send(claimableBalance);
-        require(sent, "Failed to claim.");
+        if (claimableBalance > 0) {
+            // Claim the balance
+            bool sent = payable(msg.sender).send(claimableBalance);
+            require(sent, "Failed to claim.");
+
+            // Trigger the event
+            emit ClaimedBalance(msg.sender, claimableBalance);
+        }
+    }
+
+    // Release the name
+    function release(string memory name) external nameRegistered(name) {
+        bytes32 nameEncoded = encodeName(name);
+        uint256 nameOrderNumber = nameRegistry[nameEncoded];
+        Order memory nameOrder = orders[nameOrderNumber];
+
+        // Check if sender is order owner.
+        require(
+            nameOrder.owner == msg.sender,
+            "Only name owner can release the name."
+        );
+
+        // release the name
+        delete nameRegistry[nameEncoded];
+
+        // Mark the order as expired
+        // Minus 1 to make sure user can claim the balance, right after releasing the name
+        nameOrder.lockedUntil = block.timestamp - 1;
+
+        orders[nameOrderNumber] = nameOrder;
 
         // Trigger the event
-        emit ClaimedBalance(msg.sender, claimableBalance);
+        emit NameReleased(msg.sender, name);
     }
 }
