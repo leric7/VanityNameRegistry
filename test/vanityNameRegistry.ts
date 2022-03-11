@@ -219,6 +219,33 @@ contract("VanityNameRegistry", (accounts) => {
     );
   });
 
+  it("user1 should not be able to register existing name, after expiration", async () => {
+    // user1 registers the name1
+    const receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // name expires
+    await advanceTime(initialLockDuration.add(initialLockDuration).toNumber());
+
+    // user1 registeres the same name1
+    await truffleAssert.fails(
+      instance.register(name1, {
+        from: user1Account,
+        value: web3.utils.toWei("0.01", "ether"),
+      }),
+      "Name is already registered."
+    );
+  });
+
   it("user1 should be able to register multiple names", async () => {
     // user1 registers name1
 
@@ -255,4 +282,111 @@ contract("VanityNameRegistry", (accounts) => {
       `Orders were not created.`
     );
   });
+
+  it("user1 should be able to renew the expired name", async () => {
+    // user1 registers the name1
+    let receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // name expires
+    await advanceTime(initialLockDuration.add(initialLockDuration).toNumber());
+
+    // user1 renews name1
+    
+    receipt = instance.renew(name1, {
+      from: user1Account
+    });
+
+    // Get transaction details & latest block
+    const tx = await web3.eth.getTransaction(receipt.tx);
+    const latestBlock = await web3.eth.getBlock("latest");
+    
+    // Calculate locked balance based on fee and name
+    const lockedBalance = initialPricePerChar.mul(
+      web3.utils.toBN(name1.length)
+    );
+
+    truffleAssert.eventEmitted(receipt, "NameRenewed", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1 &&
+        event.lockedBalance.toString() === lockedBalance.toString() &&
+        event.lockedUntil.toString() ===
+          web3.utils
+            .toBN(latestBlock.timestamp)
+            .add(initialLockDuration)
+            .toString()
+      );
+    });
+  });
+
+  it("user1 should not be able to renew the name not registered.", async () => {
+    // user1 renews the name1, which is not registered.
+    await truffleAssert.fails(
+      instance.renew(name1, {
+        from: user1Account,
+        value: web3.utils.toWei("0.01", "ether"),
+      }),
+      "Name is not yet registered."
+    );
+  })
+
+  it("user1 should not be able to renew the name being used.", async () => {
+    // user1 registers the name1
+    let receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    await truffleAssert.fails(
+      instance.renew(name1, {
+        from: user1Account,
+        value: web3.utils.toWei("0.01", "ether"),
+      }),
+      "Name is currently being used."
+    );
+  })
+
+  it("user1 should not be able to renew the name registered by user2.", async () => {
+    // user2 registers the name1
+    let receipt = await instance.register(name1, {
+      from: user2Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user2Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // name expires
+    await advanceTime(initialLockDuration.add(initialLockDuration).toNumber());
+
+    // user1 renews the name1
+    await truffleAssert.fails(
+      instance.renew(name1, {
+        from: user1Account,
+        value: web3.utils.toWei("0.01", "ether"),
+      }),
+      "Only name owner can renew the name."
+    );
+  })
 });
