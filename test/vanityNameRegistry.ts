@@ -712,4 +712,208 @@ contract("VanityNameRegistry", (accounts) => {
       `User did not claim the proper amount.`
     );
   });
+
+  it("user1 should be able to release the name after registration", async () => {
+    // user1 registers the name1
+    let receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // user1 releases the name1
+    receipt = await instance.release(name1, {
+      from: user1Account,
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameReleased", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+  });
+
+  it("user1 should not be able to release the name before registration", async () => {
+    // user1 releases the name1
+    await truffleAssert.fail(
+      instance.release(name1, {
+        from: user1Account,
+      }),
+      "Name is not registered yet."
+    );
+  });
+
+  it("user2 should be able to register same name after user1 releases the name", async () => {
+    // user1 registers the name1
+    let receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // user1 releases the name1
+    receipt = await instance.release(name1, {
+      from: user1Account,
+    });
+
+    truffleAssert.eventEmitted(receipt, "NameReleased", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // user2 registers the name1
+    // Keep the user account original balance
+    const originalBalance = await web3.eth.getBalance(user2Account);
+
+    // Calculate locked balance based on fee and name
+    const lockedBalance = initialPricePerChar.mul(
+      web3.utils.toBN(name1.length)
+    );
+
+    // Register the name
+    receipt = await instance.register(name1, {
+      from: user2Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    // Get transaction details & latest block
+    const tx1 = await web3.eth.getTransaction(receipt.tx);
+    const latestBlock1 = await web3.eth.getBlock("latest");
+    const gasPrice1 = web3.utils
+      .toBN(tx1.gasPrice)
+      .mul(web3.utils.toBN(latestBlock1.gasUsed));
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user2Account.toString() &&
+        event.name.toString() === name1 &&
+        event.lockedBalance.toString() === lockedBalance.toString() &&
+        event.lockedUntil.toString() ===
+          web3.utils
+            .toBN(latestBlock1.timestamp)
+            .add(initialLockDuration)
+            .toString()
+      );
+    });
+
+    // Compare current balance
+    let currentBalance = await web3.eth.getBalance(user2Account);
+    assert.equal(
+      currentBalance,
+      web3.utils
+        .toBN(originalBalance)
+        .sub(lockedBalance)
+        .sub(gasPrice1)
+        .toString(),
+      `User balance is not locked by ${web3.utils.toWei(lockedBalance)}.`
+    );
+  });
+
+  it("user1 should be able to claim the balance for the released name", async () => {
+    // Keep the user account original balance
+    const originalBalance = await web3.eth.getBalance(user1Account);
+
+    // Calculate locked balance based on fee and name
+    const lockedBalance = initialPricePerChar.mul(
+      web3.utils.toBN(name1.length)
+    );
+
+    // Register the name
+    let receipt = await instance.register(name1, {
+      from: user1Account,
+      value: web3.utils.toWei("0.01", "ether"),
+    });
+
+    // Get transaction details & latest block
+    const tx1 = await web3.eth.getTransaction(receipt.tx);
+    const latestBlock1 = await web3.eth.getBlock("latest");
+    const gasPrice1 = web3.utils
+      .toBN(tx1.gasPrice)
+      .mul(web3.utils.toBN(latestBlock1.gasUsed));
+
+    truffleAssert.eventEmitted(receipt, "NameRegistered", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1 &&
+        event.lockedBalance.toString() === lockedBalance.toString() &&
+        event.lockedUntil.toString() ===
+          web3.utils
+            .toBN(latestBlock1.timestamp)
+            .add(initialLockDuration)
+            .toString()
+      );
+    });
+
+    // Compare current balance
+    let currentBalance = await web3.eth.getBalance(user1Account);
+    assert.equal(
+      currentBalance,
+      web3.utils
+        .toBN(originalBalance)
+        .sub(lockedBalance)
+        .sub(gasPrice1)
+        .toString(),
+      `User balance is not locked by ${web3.utils.toWei(lockedBalance)}.`
+    );
+
+    // user1 releases the name1
+    receipt = await instance.release(name1, { from: user1Account });
+    const tx2 = await web3.eth.getTransaction(receipt.tx);
+    const latestBlock2 = await web3.eth.getBlock("latest");
+    const gasPrice2 = web3.utils
+      .toBN(tx2.gasPrice)
+      .mul(web3.utils.toBN(latestBlock2.gasUsed));
+
+    truffleAssert.eventEmitted(receipt, "NameReleased", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.name.toString() === name1
+      );
+    });
+
+    // user1 claims the balance
+    receipt = await instance.claim({ from: user1Account });
+
+    // Get transaction details & latest block
+    const tx3 = await web3.eth.getTransaction(receipt.tx);
+    const latestBlock3 = await web3.eth.getBlock("latest");
+    const gasPrice3 = web3.utils
+      .toBN(tx3.gasPrice)
+      .mul(web3.utils.toBN(latestBlock3.gasUsed));
+
+    truffleAssert.eventEmitted(receipt, "ClaimedBalance", (event: any) => {
+      return (
+        event.owner.toString() === user1Account.toString() &&
+        event.balance.toString() === lockedBalance.toString()
+      );
+    });
+
+    // Compare current balance
+    currentBalance = await web3.eth.getBalance(user1Account);
+    assert.equal(
+      currentBalance,
+      web3.utils
+        .toBN(originalBalance)
+        .sub(gasPrice1)
+        .sub(gasPrice2)
+        .sub(gasPrice3)
+        .toString(),
+      `User did not claim the proper amount.`
+    );
+  });
 });
