@@ -56,6 +56,7 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
         uint256 lockedBalance,
         uint256 lockedUntil
     );
+    event ClaimedBalance(address owner, uint256 balance);
 
     /**
      * Internal Functions
@@ -196,5 +197,31 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
             nameOrder.lockedBalance,
             nameOrder.lockedUntil
         );
+    }
+
+    // Claim the balance for expired names
+    function claim() external nonReentrant {
+        uint256[] memory ownedOrders = owned[msg.sender];
+
+        uint256 orderSize = ownedOrders.length;
+        uint256 claimableBalance = 0;
+
+        for (uint256 i = 0; i < orderSize; i++) {
+            uint256 ownedOrderNumber = ownedOrders[i];
+            Order memory order = orders[ownedOrderNumber];
+
+            // If order is expired,
+            if (order.lockedUntil < block.timestamp) {
+                claimableBalance += order.lockedBalance;
+                delete orders[ownedOrderNumber];
+            }
+        }
+
+        // Claim the balance
+        bool sent = payable(msg.sender).send(claimableBalance);
+        require(sent, "Failed to claim.");
+
+        // Trigger the event
+        emit ClaimedBalance(msg.sender, claimableBalance);
     }
 }

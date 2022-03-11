@@ -449,7 +449,7 @@ contract("VanityNameRegistry", (accounts) => {
     truffleAssert.eventEmitted(receipt, "ClaimedBalance", (event: any) => {
       return (
         event.owner.toString() === user1Account.toString() &&
-        event.amount.toString() === lockedBalance.toString()
+        event.balance.toString() === lockedBalance.toString()
       );
     });
 
@@ -567,7 +567,7 @@ contract("VanityNameRegistry", (accounts) => {
     truffleAssert.eventEmitted(receipt, "ClaimedBalance", (event: any) => {
       return (
         event.owner.toString() === user1Account.toString() &&
-        event.amount.toString() === lockedBalance1.toString()
+        event.balance.toString() === lockedBalance1.toString()
       );
     });
 
@@ -694,7 +694,7 @@ contract("VanityNameRegistry", (accounts) => {
     truffleAssert.eventEmitted(receipt, "ClaimedBalance", (event: any) => {
       return (
         event.owner.toString() === user1Account.toString() &&
-        event.amount.toString() ===
+        event.balance.toString() ===
           lockedBalance1.add(lockedBalance2).toString()
       );
     });
