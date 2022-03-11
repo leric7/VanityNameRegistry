@@ -301,15 +301,14 @@ contract("VanityNameRegistry", (accounts) => {
     await advanceTime(initialLockDuration.add(initialLockDuration).toNumber());
 
     // user1 renews name1
-    
-    receipt = instance.renew(name1, {
-      from: user1Account
+
+    receipt = await instance.renew(name1, {
+      from: user1Account,
     });
 
     // Get transaction details & latest block
-    const tx = await web3.eth.getTransaction(receipt.tx);
     const latestBlock = await web3.eth.getBlock("latest");
-    
+
     // Calculate locked balance based on fee and name
     const lockedBalance = initialPricePerChar.mul(
       web3.utils.toBN(name1.length)
@@ -334,11 +333,10 @@ contract("VanityNameRegistry", (accounts) => {
     await truffleAssert.fails(
       instance.renew(name1, {
         from: user1Account,
-        value: web3.utils.toWei("0.01", "ether"),
       }),
-      "Name is not yet registered."
+      "Name is not registered yet."
     );
-  })
+  });
 
   it("user1 should not be able to renew the name being used.", async () => {
     // user1 registers the name1
@@ -357,11 +355,10 @@ contract("VanityNameRegistry", (accounts) => {
     await truffleAssert.fails(
       instance.renew(name1, {
         from: user1Account,
-        value: web3.utils.toWei("0.01", "ether"),
       }),
       "Name is currently being used."
     );
-  })
+  });
 
   it("user1 should not be able to renew the name registered by user2.", async () => {
     // user2 registers the name1
@@ -384,9 +381,8 @@ contract("VanityNameRegistry", (accounts) => {
     await truffleAssert.fails(
       instance.renew(name1, {
         from: user1Account,
-        value: web3.utils.toWei("0.01", "ether"),
       }),
       "Only name owner can renew the name."
     );
-  })
+  });
 });

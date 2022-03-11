@@ -50,14 +50,34 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
         uint256 lockedBalance,
         uint256 lockedUntil
     );
+    event NameRenewed(
+        address owner,
+        string name,
+        uint256 lockedBalance,
+        uint256 lockedUntil
+    );
 
-    // Modifiers
-    modifier nameAvailable(string memory name) {
-        bytes32 nameEncoded = keccak256(abi.encodePacked(name));
-        require(nameRegistry[nameEncoded] == 0, "Name is already registered.");
-        _;
+    /**
+     * Internal Functions
+     */
+
+    // Calculate the registration fee.
+    function getRegistrationFee(string memory name)
+        internal
+        view
+        returns (uint256)
+    {
+        return pricePerChar * bytes(name).length;
     }
 
+    // Get hash of the name
+    function encodeName(string memory name) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(name));
+    }
+
+    /**
+     * constructor
+     */
     constructor(uint256 initialPricePerChar, uint256 initialLockDuration) {
         // Set initial pricePerChar, lockDuration
         pricePerChar = initialPricePerChar;
@@ -93,26 +113,13 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
         return lockDuration;
     }
 
-    // Internal function to calculate the registration fee.
-    function getRegistrationFee(string memory name)
-        internal
-        view
-        returns (uint256)
-    {
-        return pricePerChar * bytes(name).length;
-    }
-
     // Register the name
     // nameAvailable modifier protects user from frontrunning attacks, by simply not allowing the user to register the existing name.
-    function register(string memory name)
-        external
-        payable
-        nameAvailable(name)
-        nonReentrant
-        returns (bool)
-    {
+    function register(string memory name) external payable nonReentrant {
         // Encode the name
-        bytes32 nameEncoded = keccak256(abi.encodePacked(name));
+        bytes32 nameEncoded = encodeName(name);
+
+        require(nameRegistry[nameEncoded] == 0, "Name is already registered.");
 
         // Calculate the registration fee
         uint256 registrationFee = getRegistrationFee(name);
@@ -154,7 +161,40 @@ contract VanityNameRegistry is Ownable, ReentrancyGuard {
         uint256 remainingBalance = msg.value - registrationFee;
         bool sent = payable(msg.sender).send(remainingBalance);
         require(sent, "Could not pay back remaining funds.");
+    }
 
-        return true;
+    // Renew the name
+    function renew(string memory name) external {
+        // Encode the name
+        bytes32 nameEncoded = encodeName(name);
+        uint256 nameOrderNumber = nameRegistry[nameEncoded];
+
+        // Check if name is registered.
+        require(nameOrderNumber != 0, "Name is not registered yet.");
+
+        Order memory nameOrder = orders[nameOrderNumber];
+
+        // Check if sender is order owner.
+        require(
+            nameOrder.owner == msg.sender,
+            "Only name owner can renew the name."
+        );
+        // Check if name is expired.
+        require(
+            nameOrder.lockedUntil < block.timestamp,
+            "Name is currently being used."
+        );
+
+        // Renew the name
+        nameOrder.lockedUntil = block.timestamp + lockDuration;
+        orders[orderNumber] = nameOrder;
+
+        // Trigger the event
+        emit NameRenewed(
+            nameOrder.owner,
+            name,
+            nameOrder.lockedBalance,
+            nameOrder.lockedUntil
+        );
     }
 }
